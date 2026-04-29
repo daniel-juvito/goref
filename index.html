@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoRef Language Specification v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0e14;
+    --bg2: #11141d;
+    --bg3: #181c28;
+    --surface: #1e2333;
+    --surface2: #252b3d;
+    --border: #2a3047;
+    --border2: #3a4260;
+    --accent: #5b8dfa;
+    --accent2: #3d6cf5;
+    --accent-dim: rgba(91,141,250,0.12);
+    --accent-glow: rgba(91,141,250,0.25);
+    --green: #4ade9a;
+    --green-dim: rgba(74,222,154,0.1);
+    --red: #ff6b6b;
+    --red-dim: rgba(255,107,107,0.1);
+    --amber: #f5a623;
+    --amber-dim: rgba(245,166,35,0.1);
+    --text: #e2e8f8;
+    --text2: #9aa5c4;
+    --text3: #5a6585;
+    --code-bg: #090b10;
+    --code-string: #4ade9a;
+    --code-keyword: #5b8dfa;
+    --code-comment: #4a5578;
+    --code-type: #f5a623;
+    --code-op: #c678dd;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.75;
+    min-height: 100vh;
+  }
+
+  /* ── NOISE TEXTURE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ── LAYOUT ── */
+  .page {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 2rem 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .sidebar-logo {
+    padding: 0 1.5rem 2rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+  }
+
+  .sidebar-logo .lang-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.6rem;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+    display: block;
+  }
+
+  .sidebar-logo .lang-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text3);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .nav-section {
+    padding: 0 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .nav-section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 0.5rem;
+  }
+
+  .nav-link {
+    display: block;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--text2);
+    text-decoration: none;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    margin-bottom: 1px;
+  }
+
+  .nav-link:hover {
+    color: var(--text);
+    background: var(--accent-dim);
+    border-left-color: var(--accent);
+  }
+
+  .nav-link.active {
+    color: var(--accent);
+    background: var(--accent-dim);
+    border-left-color: var(--accent);
+  }
+
+  .type-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+
+  .type-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+
+  .type-badge.ref { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+  .type-badge.nil { color: var(--green); border-color: var(--green); background: var(--green-dim); }
+  .type-badge.both { color: var(--amber); border-color: var(--amber); background: var(--amber-dim); }
+
+  /* ── MAIN CONTENT ── */
+  .main {
+    padding: 0;
+    max-width: 860px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 6rem 4rem 4rem;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: 'GoRef';
+    position: absolute;
+    right: -1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 14rem;
+    color: var(--accent);
+    opacity: 0.03;
+    pointer-events: none;
+    line-height: 1;
+    user-select: none;
+  }
+
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 24px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  .hero-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 4rem;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+  }
+
+  .hero-title span { color: var(--accent); }
+
+  .hero-version {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text3);
+    margin-bottom: 2rem;
+    letter-spacing: 0.1em;
+  }
+
+  .hero-desc {
+    font-size: 1.15rem;
+    color: var(--text2);
+    max-width: 520px;
+    line-height: 1.7;
+    margin-bottom: 2.5rem;
+  }
+
+  .hero-types {
+    display: flex;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    width: fit-content;
+  }
+
+  .hero-type {
+    padding: 1.2rem 2rem;
+    background: var(--bg2);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .hero-type-sig {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.4rem;
+    font-weight: 500;
+  }
+
+  .hero-type-sig.ref { color: var(--accent); }
+  .hero-type-sig.nil { color: var(--green); }
+  .hero-type-sig.both { color: var(--amber); }
+
+  .hero-type-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  /* ── SECTIONS ── */
+  .content {
+    padding: 0 4rem 6rem;
+  }
+
+  section {
+    padding-top: 4rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 3rem;
+  }
+
+  section:last-of-type { border-bottom: none; }
+
+  .section-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--text3);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 2rem;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    margin-bottom: 1.5rem;
+    line-height: 1.2;
+  }
+
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin: 2.5rem 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  h2::before {
+    content: '';
+    display: block;
+    width: 3px;
+    height: 1.1em;
+    background: var(--accent);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text2);
+    margin: 2rem 0 0.8rem;
+    letter-spacing: 0.01em;
+  }
+
+  p {
+    color: var(--text2);
+    margin-bottom: 1rem;
+  }
+
+  p:last-child { margin-bottom: 0; }
+
+  strong { color: var(--text); font-style: normal; }
+
+  em { font-style: italic; color: var(--text2); }
+
+  /* ── INLINE CODE ── */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82em;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+    color: var(--accent);
+  }
+
+  /* ── CODE BLOCKS ── */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 1.5rem 0;
+    overflow: hidden;
+  }
+
+  .code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-block-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .code-dots {
+    display: flex;
+    gap: 4px;
+  }
+
+  .code-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border2);
+  }
+
+  .code-block pre {
+    padding: 1.25rem 1.5rem;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: var(--text2);
+  }
+
+  .code-block pre::-webkit-scrollbar { height: 4px; }
+  .code-block pre::-webkit-scrollbar-track { background: transparent; }
+  .code-block pre::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* syntax highlighting classes */
+  .kw { color: var(--code-keyword); }
+  .ty { color: var(--code-type); }
+  .st { color: var(--code-string); }
+  .cm { color: var(--code-comment); font-style: italic; }
+  .op { color: var(--code-op); }
+  .ref-t { color: var(--accent); font-weight: 500; }
+  .nil-t { color: var(--green); font-weight: 500; }
+  .both-t { color: var(--amber); font-weight: 500; }
+  .err-t { color: var(--red); }
+
+  /* split code blocks */
+  .code-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+
+  .code-split .code-pane {
+    background: var(--code-bg);
+  }
+
+  .code-pane-header {
+    padding: 0.5rem 1rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .code-pane pre {
+    padding: 1.2rem 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--text2);
+    overflow-x: auto;
+  }
+
+  /* ── TABLES ── */
+  .table-wrap {
+    margin: 1.5rem 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  thead tr {
+    background: var(--surface2);
+  }
+
+  thead th {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text3);
+    font-weight: 600;
+    padding: 0.75rem 1.25rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--accent-dim); }
+
+  tbody td {
+    padding: 0.7rem 1.25rem;
+    color: var(--text2);
+    vertical-align: top;
+  }
+
+  tbody td:first-child {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  /* ── CALLOUT BOXES ── */
+  .callout {
+    border-radius: 8px;
+    padding: 1.1rem 1.4rem;
+    margin: 1.5rem 0;
+    border-left: 3px solid;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .callout-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  .callout-body { flex: 1; }
+
+  .callout-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .callout-text {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .callout.info {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+  }
+  .callout.info .callout-title { color: var(--accent); }
+  .callout.info .callout-text { color: var(--text2); }
+
+  .callout.tip {
+    background: var(--green-dim);
+    border-color: var(--green);
+  }
+  .callout.tip .callout-title { color: var(--green); }
+  .callout.tip .callout-text { color: var(--text2); }
+
+  .callout.warn {
+    background: var(--amber-dim);
+    border-color: var(--amber);
+  }
+  .callout.warn .callout-title { color: var(--amber); }
+  .callout.warn .callout-text { color: var(--text2); }
+
+  .callout.error {
+    background: var(--red-dim);
+    border-color: var(--red);
+  }
+  .callout.error .callout-title { color: var(--red); }
+  .callout.error .callout-text { color: var(--text2); }
+
+  /* ── LISTS ── */
+  ul, ol {
+    padding-left: 1.5rem;
+    color: var(--text2);
+    margin: 0.5rem 0 1rem;
+  }
+
+  li {
+    margin-bottom: 0.4rem;
+    line-height: 1.65;
+  }
+
+  li code { font-size: 0.8em; }
+
+  /* ── TYPE CARDS ── */
+  .type-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+
+  .type-card {
+    background: var(--bg2);
+    padding: 1.5rem;
+  }
+
+  .type-card-sig {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.8rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    line-height: 1;
+  }
+
+  .type-card-sig.ref { color: var(--accent); }
+  .type-card-sig.nil { color: var(--green); }
+  .type-card-sig.both { color: var(--amber); }
+
+  .type-card-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 0.8rem;
+  }
+
+  .type-card-desc {
+    font-size: 0.85rem;
+    color: var(--text2);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .type-card-go {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    margin-top: 0.8rem;
+    color: var(--text3);
+  }
+
+  .type-card-go span { color: var(--text2); }
+
+  /* ── ERROR CODE PILLS ── */
+  .error-table tbody td:first-child {
+    color: var(--red);
+  }
+
+  /* ── PIPELINE STEPS ── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+
+  .pipeline-step {
+    background: var(--bg2);
+    padding: 0.9rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+  }
+
+  .pipeline-step:hover { background: var(--surface); }
+
+  .step-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 0.15rem 0.45rem;
+    flex-shrink: 0;
+    letter-spacing: 0.05em;
+  }
+
+  .step-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text);
+    min-width: 130px;
+  }
+
+  .step-desc {
+    font-size: 0.85rem;
+    color: var(--text2);
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero > * {
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .hero-eyebrow { animation-delay: 0.05s; }
+  .hero-title { animation-delay: 0.1s; }
+  .hero-version { animation-delay: 0.15s; }
+  .hero-desc { animation-delay: 0.2s; }
+  .hero-types { animation-delay: 0.25s; }
+
+  /* ── FOOTER ── */
+  .doc-footer {
+    padding: 2rem 4rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .page { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .hero { padding: 3rem 2rem 2rem; }
+    .hero-title { font-size: 2.5rem; }
+    .content { padding: 0 2rem 4rem; }
+    .hero::before { display: none; }
+    .type-cards { grid-template-columns: 1fr; }
+    .code-split { grid-template-columns: 1fr; }
+    .doc-footer { padding: 1.5rem 2rem; flex-direction: column; gap: 0.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="lang-name">GoRef</span>
+      <span class="lang-sub">Language Spec · v1.0</span>
+    </div>
+
+    <nav class="nav-section">
+      <div class="nav-section-label">Overview</div>
+      <a class="nav-link" href="#intro">1. Introduction</a>
+      <a class="nav-link" href="#goals">2. Goals &amp; Non-Goals</a>
+    </nav>
+
+    <nav class="nav-section">
+      <div class="nav-section-label">Type System</div>
+      <a class="nav-link" href="#types">3. Type System</a>
+      <a class="nav-link" href="#ref-type">&nbsp;&nbsp;3.1 Reference &amp;T</a>
+      <a class="nav-link" href="#nil-type">&nbsp;&nbsp;3.2 Nilable ?T</a>
+      <a class="nav-link" href="#refnil-type">&nbsp;&nbsp;3.3 Reference to Nilable &amp;?T</a>
+      <a class="nav-link" href="#compat">&nbsp;&nbsp;3.4 Compatibility Table</a>
+    </nav>
+
+    <nav class="nav-section">
+      <div class="nav-section-label">Semantics</div>
+      <a class="nav-link" href="#implicit">4. Implicit Referencing</a>
+      <a class="nav-link" href="#nil-safety">5. Nil Safety</a>
+      <a class="nav-link" href="#transpile">6. Transpilation Rules</a>
+      <a class="nav-link" href="#syntax">7. Declarations &amp; Syntax</a>
+      <a class="nav-link" href="#control">8. Control Flow</a>
+    </nav>
+
+    <nav class="nav-section">
+      <div class="nav-section-label">Reference</div>
+      <a class="nav-link" href="#arch">9. Transpiler Architecture</a>
+      <a class="nav-link" href="#examples">10. Full Examples</a>
+      <a class="nav-link" href="#comparison">11. Comparison to Go</a>
+      <a class="nav-link" href="#future">12. Future Work</a>
+      <a class="nav-link" href="#appendix-a">Appendix A — Quick Ref</a>
+      <a class="nav-link" href="#appendix-b">Appendix B — Error Codes</a>
+    </nav>
+
+    <div class="type-badges">
+      <span class="type-badge ref">&amp;T</span>
+      <span class="type-badge nil">?T</span>
+      <span class="type-badge both">&amp;?T</span>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-eyebrow">Language Specification</div>
+      <h1 class="hero-title">Go<span>Ref</span></h1>
+      <div class="hero-version">VERSION 1.0 · DRAFT · TRANSPILES TO GO</div>
+      <p class="hero-desc">
+        A Go-compatible language that replaces the dual-purpose pointer (<code>*T</code>)
+        with two explicit constructs — one for mutation, one for optionality.
+        Every GoRef program compiles to idiomatic, readable Go.
+      </p>
+      <div class="hero-types">
+        <div class="hero-type">
+          <div class="hero-type-sig ref">&amp;T</div>
+          <div class="hero-type-label">Reference Type</div>
+        </div>
+        <div class="hero-type">
+          <div class="hero-type-sig nil">?T</div>
+          <div class="hero-type-label">Nilable Type</div>
+        </div>
+        <div class="hero-type">
+          <div class="hero-type-sig both">&amp;?T</div>
+          <div class="hero-type-label">Reference to Nilable</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── 1. INTRODUCTION ── -->
+      <section id="intro">
+        <div class="section-number">§ 01</div>
+        <h1>Introduction</h1>
+        <p>
+          GoRef is a statically typed, compiled language that transpiles to idiomatic Go.
+          It is syntactically and semantically identical to Go in almost every way,
+          with one deliberate departure: the pointer type (<code>*T</code>) is replaced
+          by two distinct, purpose-built constructs.
+        </p>
+        <p>
+          In Go, a pointer (<code>*T</code>) serves two fundamentally different purposes:
+        </p>
+        <ul>
+          <li><strong>Mutation via reference</strong> — passing a value so a callee can modify the caller's copy.</li>
+          <li><strong>Optionality / nil</strong> — expressing that a value may be absent.</li>
+        </ul>
+        <p>
+          Conflating these two concerns forces programmers to always ask:
+          <em>"Is this pointer here because the value might be nil, or because I need to mutate it?"</em>
+          GoRef eliminates that ambiguity by splitting the concept cleanly.
+        </p>
+
+        <div class="type-cards">
+          <div class="type-card">
+            <div class="type-card-sig ref">&amp;T</div>
+            <div class="type-card-name">Reference Type</div>
+            <p class="type-card-desc">Always holds a valid T, never nil. Enables mutation across call boundaries.</p>
+            <div class="type-card-go">→ Go: <span>*T</span></div>
+          </div>
+          <div class="type-card">
+            <div class="type-card-sig nil">?T</div>
+            <div class="type-card-name">Nilable Type</div>
+            <p class="type-card-desc">May be absent (nil). Must be nil-checked before use.</p>
+            <div class="type-card-go">→ Go: <span>*T</span></div>
+          </div>
+          <div class="type-card">
+            <div class="type-card-sig both">&amp;?T</div>
+            <div class="type-card-name">Reference to Nilable</div>
+            <p class="type-card-desc">A non-nil reference to a slot whose value may be nil. Combines both concerns explicitly.</p>
+            <div class="type-card-go">→ Go: <span>*T</span></div>
+          </div>
+        </div>
+
+        <div class="callout info">
+          <div class="callout-icon">◆</div>
+          <div class="callout-body">
+            <div class="callout-title">Design Philosophy</div>
+            <p class="callout-text">GoRef does not add a runtime. Every GoRef program compiles to valid, readable Go code. The transpiler is the only additional tool in the chain. All three types — <code>&amp;T</code>, <code>?T</code>, and <code>&amp;?T</code> — transpile to <code>*T</code> in Go; the distinctions are enforced statically by the transpiler.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 2. GOALS ── -->
+      <section id="goals">
+        <div class="section-number">§ 02</div>
+        <h1>Goals &amp; Non-Goals</h1>
+
+        <h2>Goals</h2>
+        <ul>
+          <li>Be a strict superset of Go syntax (modulo pointer syntax).</li>
+          <li>Produce idiomatic, human-readable Go output.</li>
+          <li>Make nil-safety statically verifiable at transpile time.</li>
+          <li>Eliminate implicit nil dereferences with zero runtime overhead.</li>
+          <li>Preserve all Go semantics: goroutines, channels, interfaces, embedding.</li>
+          <li>Implicit referencing — callers never write <code>&amp;</code> when passing to <code>&amp;T</code> parameters.</li>
+        </ul>
+
+        <h2>Non-Goals</h2>
+        <ul>
+          <li>GoRef is not a new runtime or VM.</li>
+          <li>GoRef does not change Go's memory model or garbage collector.</li>
+          <li>GoRef does not introduce ownership or borrow-checking.</li>
+          <li>GoRef does not change performance characteristics vs plain Go.</li>
+        </ul>
+      </section>
+
+      <!-- ── 3. TYPE SYSTEM ── -->
+      <section id="types">
+        <div class="section-number">§ 03</div>
+        <h1>Type System</h1>
+
+        <h2 id="ref-type">3.1 Reference Type &nbsp;<code class="ref-t">&amp;T</code></h2>
+        <p>
+          A reference type <code>&amp;T</code> is a non-nil alias to a <code>T</code> value.
+          It transpiles to <code>*T</code> in Go, but the transpiler statically guarantees
+          that no <code>nil</code> is ever assigned to it.
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">GoRef</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><span class="kw">func</span> <span class="st">increment</span>(n <span class="ref-t">&amp;int</span>) {
+    *n += <span class="st">1</span>   <span class="cm">// explicit dereference still required inside the function</span>
+}
+
+x := <span class="st">10</span>
+increment(x)   <span class="cm">// x is implicitly referenced; caller writes no &amp;</span>
+<span class="cm">// x is now 11</span></pre>
+        </div>
+
+        <h3>Rules for reference types</h3>
+        <ul>
+          <li><code>&amp;T</code> variables must be initialized at declaration time.</li>
+          <li>Assigning <code>nil</code> to <code>&amp;T</code> is a transpile-time error.</li>
+          <li>Passing a value of type <code>T</code> to a parameter of type <code>&amp;T</code> is implicit — the transpiler inserts the <code>&amp;</code> operator.</li>
+          <li>Returning <code>&amp;T</code> from a function that may return <code>nil</code> is a transpile-time error.</li>
+        </ul>
+
+        <h2 id="nil-type">3.2 Nilable Type &nbsp;<code class="nil-t">?T</code></h2>
+        <p>
+          A nilable type <code>?T</code> represents a value that may be either a valid <code>T</code>
+          or <code>nil</code>. It transpiles to <code>*T</code> in Go.
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">GoRef</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><span class="kw">func</span> <span class="st">findUser</span>(id <span class="ty">int</span>) <span class="nil-t">?User</span> {
+    <span class="cm">// ...may return nil</span>
+}
+
+u := findUser(<span class="st">42</span>)
+
+<span class="cm">// u.Name  &lt;- transpiler error: ?User used without nil check</span>
+
+<span class="kw">if</span> u != <span class="kw">nil</span> {
+    fmt.Println(u.Name)  <span class="cm">// OK inside the guard</span>
+}</pre>
+        </div>
+
+        <h3>Rules for nilable types</h3>
+        <ul>
+          <li>Any field, variable, or return value of type <code>?T</code> must be guarded by a <code>nil</code> check before any member access, method call, or dereference.</li>
+          <li><code>nil</code> is a valid literal for <code>?T</code>.</li>
+          <li>Assigning <code>?T</code> directly to <code>T</code> (without unwrapping) is a transpile-time error.</li>
+          <li>The guard may be an <code>if v != nil</code> block, an <code>if v, ok := expr; ok</code> pattern, or a type-switch.</li>
+        </ul>
+
+        <h2 id="refnil-type">3.3 Reference to Nilable &nbsp;<code class="both-t">&amp;?T</code></h2>
+        <p>
+          The type <code>&amp;?T</code> is a reference to a nilable slot — the slot itself
+          always exists (non-nil reference), but the value inside may be nil.
+          It transpiles to <code>*T</code> in Go, identical to <code>?T</code> at the wire level.
+          The distinction is purely in GoRef's type system: the transpiler enforces that
+          the reference itself cannot be nil, while the value it points to may be.
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">GoRef → Go</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><span class="cm">// GoRef</span>
+<span class="kw">func</span> <span class="st">clearUser</span>(u <span class="both-t">&amp;?User</span>) {
+    *u = <span class="kw">nil</span>   <span class="cm">// sets the nilable slot to nil</span>
+}
+
+<span class="kw">var</span> current <span class="nil-t">?User</span> = getUser()
+clearUser(current)   <span class="cm">// implicitly referenced</span>
+
+<span class="cm">// Generated Go — &amp;?T transpiles to *T, same as ?T</span>
+<span class="kw">func</span> <span class="st">clearUser</span>(u <span class="ref-t">*User</span>) {
+    *u = <span class="kw">nil</span>
+}
+current := getUser()
+clearUser(&amp;current)  <span class="cm">// transpiler inserted &amp;</span></pre>
+        </div>
+
+        <h3>Rules for &amp;?T</h3>
+        <ul>
+          <li>The reference itself is always non-nil (outer <code>&amp;</code> guarantee).</li>
+          <li>The inner <code>?T</code> still requires a nil-check before access.</li>
+          <li>Transpiles to <code>*T</code> in Go — identical wire type to <code>?T</code>, non-nil guarantee enforced statically.</li>
+        </ul>
+
+        <h2 id="compat">3.4 Type Compatibility Table</h2>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>GoRef Type</th><th>Go Output</th><th>Semantics</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>T</td><td>T</td><td>Plain value type — same as Go.</td></tr>
+              <tr><td>&amp;T</td><td>*T</td><td>Non-nil reference. Nil assignment is a transpile error.</td></tr>
+              <tr><td>?T</td><td>*T</td><td>Nilable. Requires nil-guard before use.</td></tr>
+              <tr><td>&amp;?T</td><td>*T</td><td>Non-nil reference to a nilable slot. Nil-on-reference is a transpile error.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout error">
+          <div class="callout-icon">✕</div>
+          <div class="callout-body">
+            <div class="callout-title">Invalid Type Combinations</div>
+            <p class="callout-text">
+              <code>??T</code> (double nilable) and <code>&amp;&amp;T</code> (double reference) are transpile errors (GR009).
+              <code>??T</code> is redundant — nil is the sole absent value for <code>?T</code>, nesting it adds nothing.
+              <code>&amp;&amp;T</code> is meaningless — a reference to a reference has no use case; <code>&amp;T</code> is always sufficient.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 4. IMPLICIT REFERENCING ── -->
+      <section id="implicit">
+        <div class="section-number">§ 04</div>
+        <h1>Implicit Referencing</h1>
+        <p>
+          When a function parameter is declared as <code>&amp;T</code>, the caller does not
+          need to write <code>&amp;</code>. The transpiler inserts it automatically.
+          This is the single largest ergonomic win over raw Go.
+        </p>
+
+        <div class="code-split">
+          <div class="code-pane">
+            <div class="code-pane-header">GoRef — source</div>
+            <pre><span class="kw">func</span> <span class="st">scale</span>(v <span class="ref-t">&amp;Vec3</span>, factor <span class="ty">float64</span>) {
+    v.X *= factor
+    v.Y *= factor
+    v.Z *= factor
+}
+
+pos := Vec3{<span class="st">1.0</span>, <span class="st">2.0</span>, <span class="st">3.0</span>}
+scale(pos, <span class="st">2.0</span>)
+<span class="cm">// caller writes pos, not &amp;pos</span></pre>
+          </div>
+          <div class="code-pane">
+            <div class="code-pane-header">Generated Go</div>
+            <pre><span class="kw">func</span> <span class="st">scale</span>(v <span class="ref-t">*Vec3</span>, factor <span class="ty">float64</span>) {
+    v.X *= factor
+    v.Y *= factor
+    v.Z *= factor
+}
+
+pos := Vec3{<span class="st">1.0</span>, <span class="st">2.0</span>, <span class="st">3.0</span>}
+scale(<span class="op">&amp;</span>pos, <span class="st">2.0</span>)
+<span class="cm">// transpiler inserted &amp;</span></pre>
+          </div>
+        </div>
+
+        <div class="callout info">
+          <div class="callout-icon">◆</div>
+          <div class="callout-body">
+            <div class="callout-title">Important</div>
+            <p class="callout-text">Implicit referencing only applies at call sites and assignment to <code>&amp;T</code>-typed variables. Inside function bodies, dereferencing (<code>*v</code>) must still be written explicitly when needed. Struct fields accessed through <code>&amp;T</code> use Go's automatic dereference (<code>v.Field</code>, not <code>(*v).Field</code>).</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 5. NIL SAFETY ── -->
+      <section id="nil-safety">
+        <div class="section-number">§ 05</div>
+        <h1>Nil Safety Rules</h1>
+
+        <h2>5.1 What Counts as a Nil Guard</h2>
+        <p>
+          The transpiler performs flow-sensitive nil analysis. The following constructs
+          lift a <code>?T</code> into a non-nil scope:
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">Valid Nil Guards</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><span class="cm">// 1. Simple if-check</span>
+<span class="kw">if</span> v != <span class="kw">nil</span> { use(v) }
+
+<span class="cm">// 2. Early return pattern</span>
+<span class="kw">if</span> v == <span class="kw">nil</span> { <span class="kw">return</span> }
+use(v)  <span class="cm">// safe after the guard</span>
+
+<span class="cm">// 3. Short-variable form</span>
+<span class="kw">if</span> v, ok := maybeGet(); ok { use(v) }
+
+<span class="cm">// 4. Switch</span>
+<span class="kw">switch</span> {
+<span class="kw">case</span> v != <span class="kw">nil</span>:
+    use(v)
+}</pre>
+        </div>
+
+        <h2>5.2 Violations — Transpile Errors</h2>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">Transpile Errors</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre>u := findUser(<span class="st">42</span>)   <span class="cm">// ?User</span>
+
+<span class="err-t">// ERROR: field access on ?User without nil check</span>
+fmt.Println(u.Name)
+
+<span class="err-t">// ERROR: passing ?User where T is expected</span>
+processUser(u)   <span class="cm">// processUser takes User, not ?User</span>
+
+<span class="err-t">// ERROR: assigning ?User to plain User</span>
+<span class="kw">var</span> plain User = u</pre>
+        </div>
+
+        <p>The transpiler reports all nil-safety violations before emitting any Go code. It never produces partially valid output.</p>
+
+        <h2>5.3 Unwrapping Operator <code>!</code></h2>
+        <p>
+          The <code>v!</code> postfix operator asserts the value is non-nil.
+          If nil is encountered at runtime, it panics with a descriptive message.
+          Use only when non-nil can be proven through external logic.
+        </p>
+
+        <div class="code-split">
+          <div class="code-pane">
+            <div class="code-pane-header">GoRef — source</div>
+            <pre>u := findUser(<span class="st">42</span>)   <span class="cm">// ?User</span>
+name := u<span class="op">!</span>.Name
+<span class="cm">// panics if u == nil</span></pre>
+          </div>
+          <div class="code-pane">
+            <div class="code-pane-header">Generated Go</div>
+            <pre><span class="kw">if</span> u == <span class="kw">nil</span> {
+    <span class="kw">panic</span>(<span class="st">"nil dereference: ?User at main.gr:12"</span>)
+}
+name := u.Name</pre>
+          </div>
+        </div>
+
+        <div class="callout warn">
+          <div class="callout-icon">⚠</div>
+          <div class="callout-body">
+            <div class="callout-title">Use Sparingly</div>
+            <p class="callout-text">The <code>!</code> operator moves nil-safety from transpile time to runtime. Prefer proper nil guards. Reserve <code>!</code> for cases where the nil-safety is proven by invariants the transpiler cannot see.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 6. TRANSPILATION RULES ── -->
+      <section id="transpile">
+        <div class="section-number">§ 06</div>
+        <h1>Transpilation Rules</h1>
+
+        <h2>6.1 Type Mapping</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>GoRef</th><th>Generated Go</th></tr></thead>
+            <tbody>
+              <tr><td>T</td><td>T</td></tr>
+              <tr><td>&amp;T</td><td>*T &nbsp;<span style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:0.75em">(non-nil static guarantee)</span></td></tr>
+              <tr><td>?T</td><td>*T</td></tr>
+              <tr><td>&amp;?T</td><td>*T &nbsp;<span style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:0.75em">(non-nil on reference enforced by transpiler)</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>6.2 Variable Declaration</h2>
+        <div class="code-split">
+          <div class="code-pane">
+            <div class="code-pane-header">GoRef</div>
+            <pre><span class="kw">var</span> a <span class="ty">int</span> = <span class="st">5</span>
+<span class="kw">var</span> b <span class="ref-t">&amp;int</span> = a
+<span class="kw">var</span> c <span class="nil-t">?int</span> = <span class="kw">nil</span>
+<span class="kw">var</span> d <span class="nil-t">?int</span> = <span class="st">10</span></pre>
+          </div>
+          <div class="code-pane">
+            <div class="code-pane-header">Generated Go</div>
+            <pre><span class="kw">var</span> a <span class="ty">int</span> = <span class="st">5</span>
+_b := a; <span class="kw">var</span> b <span class="ref-t">*int</span> = &amp;_b
+<span class="kw">var</span> c <span class="nil-t">*int</span> = <span class="kw">nil</span>
+_d := <span class="st">10</span>; <span class="kw">var</span> d <span class="nil-t">*int</span> = &amp;_d</pre>
+          </div>
+        </div>
+
+        <h2>6.3 Function Signatures</h2>
+        <div class="code-split">
+          <div class="code-pane">
+            <div class="code-pane-header">GoRef</div>
+            <pre><span class="kw">func</span> foo(
+    a <span class="ty">T</span>,
+    b <span class="ref-t">&amp;T</span>,
+    c <span class="nil-t">?T</span>,
+    d <span class="both-t">&amp;?T</span>,
+) (<span class="nil-t">?Result</span>, <span class="ty">error</span>) { ... }</pre>
+          </div>
+          <div class="code-pane">
+            <div class="code-pane-header">Generated Go</div>
+            <pre><span class="kw">func</span> foo(
+    a <span class="ty">T</span>,
+    b <span class="ref-t">*T</span>,
+    c <span class="nil-t">*T</span>,
+    d <span class="both-t">*T</span>,  <span class="cm">// &amp;?T → *T</span>
+) (<span class="nil-t">*Result</span>, <span class="ty">error</span>) { ... }</pre>
+          </div>
+        </div>
+
+        <h2>6.4 Struct Fields</h2>
+        <div class="code-split">
+          <div class="code-pane">
+            <div class="code-pane-header">GoRef</div>
+            <pre><span class="kw">type</span> <span class="ty">Node</span> <span class="kw">struct</span> {
+    Value <span class="ty">int</span>
+    Next  <span class="nil-t">?Node</span>
+}</pre>
+          </div>
+          <div class="code-pane">
+            <div class="code-pane-header">Generated Go</div>
+            <pre><span class="kw">type</span> <span class="ty">Node</span> <span class="kw">struct</span> {
+    Value <span class="ty">int</span>
+    Next  <span class="nil-t">*Node</span>
+}</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 7. SYNTAX ── -->
+      <section id="syntax">
+        <div class="section-number">§ 07</div>
+        <h1>Declarations &amp; Syntax</h1>
+
+        <h2>7.1 Short Variable Declarations</h2>
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">GoRef</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre>x := <span class="st">42</span>             <span class="cm">// int</span>
+z <span class="nil-t">?int</span> := <span class="kw">nil</span>       <span class="cm">// nilable int, nil</span>
+w <span class="nil-t">?int</span> := <span class="st">7</span>         <span class="cm">// nilable int, value 7</span>
+
+<span class="err-t">y := &amp;x              // ERROR: &amp; address-of not available in GoRef source</span></pre>
+        </div>
+
+        <div class="callout info">
+          <div class="callout-icon">◆</div>
+          <div class="callout-body">
+            <div class="callout-title">Note on &amp;</div>
+            <p class="callout-text">The <code>&amp;</code> address-of operator is not available in GoRef source for variable assignments. References are always created implicitly. This prevents programmers from accidentally creating raw pointers.</p>
+          </div>
+        </div>
+
+        <h2>7.2 Multiple Return Values with Nilables</h2>
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">GoRef — idiomatic error-or-value pattern</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><span class="kw">func</span> <span class="st">readConfig</span>(path <span class="ty">string</span>) (<span class="nil-t">?Config</span>, <span class="ty">error</span>) {
+    data, err := os.ReadFile(path)
+    <span class="kw">if</span> err != <span class="kw">nil</span> {
+        <span class="kw">return nil</span>, err
+    }
+    <span class="kw">var</span> cfg Config
+    <span class="cm">// ... parse ...</span>
+    <span class="kw">return</span> cfg, <span class="kw">nil</span>   <span class="cm">// cfg implicitly referenced to ?Config</span>
+}
+
+cfg, err := readConfig(<span class="st">"app.toml"</span>)
+<span class="kw">if</span> err != <span class="kw">nil</span> { log.Fatal(err) }
+<span class="kw">if</span> cfg == <span class="kw">nil</span> { log.Fatal(<span class="st">"no config"</span>) }
+fmt.Println(cfg.Port)  <span class="cm">// safe: nil-checked above</span></pre>
+        </div>
+
+        <h2>7.3 Interface Types</h2>
+        <p>
+          Interfaces in GoRef behave identically to Go interfaces. <code>?T</code> where <code>T</code>
+          is an interface type is a nilable interface (the interface itself may be nil),
+          identical to a nil interface in Go.
+        </p>
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">GoRef</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><span class="kw">type</span> <span class="ty">Writer</span> <span class="kw">interface</span> {
+    Write([]<span class="ty">byte</span>) (<span class="ty">int</span>, <span class="ty">error</span>)
+}
+
+<span class="kw">func</span> <span class="st">send</span>(w <span class="nil-t">?Writer</span>, data []<span class="ty">byte</span>) {
+    <span class="kw">if</span> w == <span class="kw">nil</span> { <span class="kw">return</span> }
+    w.Write(data)   <span class="cm">// safe</span>
+}</pre>
+        </div>
+      </section>
+
+      <!-- ── 8. CONTROL FLOW ── -->
+      <section id="control">
+        <div class="section-number">§ 08</div>
+        <h1>Control Flow &amp; Nil Propagation</h1>
+
+        <h2>8.1 Flow-Sensitive Analysis</h2>
+        <p>
+          The transpiler tracks nil-status through all control flow paths including
+          if/else branches, early returns, and for loops. It uses a conservative lattice:
+          if any path reaching a point may leave a <code>?T</code> unchecked, the use is flagged.
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">GoRef — branch-local guards</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre>u := findUser(id)  <span class="cm">// ?User</span>
+
+<span class="kw">if</span> someCondition {
+    <span class="kw">if</span> u == <span class="kw">nil</span> { <span class="kw">return</span> }
+    <span class="cm">// u is safe HERE (in this branch)</span>
+} <span class="kw">else</span> {
+    <span class="cm">// u is NOT safe HERE — guard only in the if-branch</span>
+}
+
+<span class="cm">// u is NOT safe here — guard was branch-local</span>
+fmt.Println(u<span class="op">!</span>.Name)  <span class="cm">// must use ! or re-check</span></pre>
+        </div>
+
+        <h2>8.2 For Range over Nilable Slices</h2>
+        <p>A <code>?[]T</code> slice must be nil-checked before ranging over it.</p>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">GoRef</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre>items <span class="nil-t">?[]string</span> = getItems()
+
+<span class="err-t">// ERROR: ranging over ?[]string without nil check</span>
+<span class="kw">for</span> _, s := <span class="kw">range</span> items { ... }
+
+<span class="cm">// OK</span>
+<span class="kw">if</span> items != <span class="kw">nil</span> {
+    <span class="kw">for</span> _, s := <span class="kw">range</span> items { fmt.Println(s) }
+}</pre>
+        </div>
+      </section>
+
+      <!-- ── 9. ARCHITECTURE ── -->
+      <section id="arch">
+        <div class="section-number">§ 09</div>
+        <h1>Transpiler Architecture</h1>
+
+        <h2>9.1 Pipeline</h2>
+
+        <div class="pipeline">
+          <div class="pipeline-step">
+            <span class="step-num">01</span>
+            <span class="step-name">Lexing</span>
+            <span class="step-desc">Standard Go lexer, extended with <code>?</code> token.</span>
+          </div>
+          <div class="pipeline-step">
+            <span class="step-num">02</span>
+            <span class="step-name">Parsing</span>
+            <span class="step-desc">Standard Go AST, with <code>&amp;T</code> / <code>?T</code> / <code>&amp;?T</code> type nodes.</span>
+          </div>
+          <div class="pipeline-step">
+            <span class="step-num">03</span>
+            <span class="step-name">Type Checking</span>
+            <span class="step-desc">Resolves all type annotations; builds reference/nilable maps.</span>
+          </div>
+          <div class="pipeline-step">
+            <span class="step-num">04</span>
+            <span class="step-name">Nil Flow Analysis</span>
+            <span class="step-desc">Flow-sensitive analysis over SSA-like IR; flags violations.</span>
+          </div>
+          <div class="pipeline-step">
+            <span class="step-num">05</span>
+            <span class="step-name">Code Generation</span>
+            <span class="step-desc">Walks AST, emits Go source with pointer types and <code>&amp;</code> insertions.</span>
+          </div>
+          <div class="pipeline-step">
+            <span class="step-num">06</span>
+            <span class="step-name">Formatting</span>
+            <span class="step-desc">Pipes output through <code>gofmt</code> for canonical style.</span>
+          </div>
+        </div>
+
+        <h2>9.2 Error Reporting</h2>
+        <p>All transpile errors include file, line, column, and a human-readable message. Nil-safety violations show the type, the missing guard, and a suggested fix.</p>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">Error Output</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><span class="err-t">main.gr:24:14: nil-safety error</span>
+    u.Name accessed on <span class="nil-t">?User</span> without nil guard.
+    Hint: wrap in  <span class="kw">if</span> u != <span class="kw">nil</span> { ... }  or use  u<span class="op">!</span>.Name  to panic on nil.</pre>
+        </div>
+
+        <h2>9.3 Compiler Invocation</h2>
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">Shell</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><span class="cm"># Transpile to Go and build</span>
+goref build ./...
+
+<span class="cm"># Transpile only (emit .go files)</span>
+goref transpile -o ./gen ./...
+
+<span class="cm"># Type-check without emitting</span>
+goref vet ./...
+
+<span class="cm"># Watch mode</span>
+goref watch ./...</pre>
+        </div>
+      </section>
+
+      <!-- ── 10. EXAMPLES ── -->
+      <section id="examples">
+        <div class="section-number">§ 10</div>
+        <h1>Full Examples</h1>
+
+        <h2>10.1 Linked List</h2>
+        <div class="code-split">
+          <div class="code-pane">
+            <div class="code-pane-header">GoRef</div>
+            <pre><span class="kw">type</span> <span class="ty">Node</span>[T <span class="kw">any</span>] <span class="kw">struct</span> {
+    Value T
+    Next  <span class="nil-t">?Node</span>[T]
+}
+
+<span class="kw">func</span> (n <span class="ref-t">&amp;Node</span>[T]) Append(val T) {
+    cur := n
+    <span class="kw">for</span> cur.Next != <span class="kw">nil</span> {
+        cur = cur.Next<span class="op">!</span>
+    }
+    cur.Next = &amp;Node[T]{Value: val}
+}</pre>
+          </div>
+          <div class="code-pane">
+            <div class="code-pane-header">Generated Go</div>
+            <pre><span class="kw">type</span> <span class="ty">Node</span>[T <span class="kw">any</span>] <span class="kw">struct</span> {
+    Value T
+    Next  <span class="nil-t">*Node</span>[T]
+}
+
+<span class="kw">func</span> (n <span class="ref-t">*Node</span>[T]) Append(val T) {
+    cur := n
+    <span class="kw">for</span> cur.Next != <span class="kw">nil</span> {
+        cur = cur.Next
+    }
+    _next := &amp;Node[T]{Value: val}
+    cur.Next = _next
+}</pre>
+          </div>
+        </div>
+
+        <h2>10.2 Optional Configuration</h2>
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">GoRef</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><span class="kw">type</span> <span class="ty">ServerConfig</span> <span class="kw">struct</span> {
+    Host    <span class="ty">string</span>
+    Port    <span class="ty">int</span>
+    TLSCert <span class="nil-t">?string</span>
+}
+
+<span class="kw">func</span> <span class="st">startServer</span>(cfg <span class="ref-t">&amp;ServerConfig</span>) <span class="ty">error</span> {
+    addr := fmt.Sprintf(<span class="st">"%s:%d"</span>, cfg.Host, cfg.Port)
+    <span class="kw">if</span> cfg.TLSCert != <span class="kw">nil</span> {
+        <span class="kw">return</span> listenTLS(addr, cfg.TLSCert<span class="op">!</span>)
+    }
+    <span class="kw">return</span> listenPlain(addr)
+}
+
+config := ServerConfig{Host: <span class="st">"localhost"</span>, Port: <span class="st">8080</span>}
+err := startServer(config)  <span class="cm">// implicit &amp;config</span></pre>
+        </div>
+
+        <h2>10.3 Repository Pattern</h2>
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-label">GoRef</span>
+            <div class="code-dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><span class="kw">type</span> <span class="ty">UserRepo</span> <span class="kw">interface</span> {
+    FindByID(id <span class="ty">int</span>) (<span class="nil-t">?User</span>, <span class="ty">error</span>)
+    Save(u <span class="ref-t">&amp;User</span>) <span class="ty">error</span>
+}
+
+<span class="kw">func</span> <span class="st">greetUser</span>(repo <span class="ty">UserRepo</span>, id <span class="ty">int</span>) <span class="ty">error</span> {
+    u, err := repo.FindByID(id)
+    <span class="kw">if</span> err != <span class="kw">nil</span> {
+        <span class="kw">return</span> fmt.Errorf(<span class="st">"db error: %w"</span>, err)
+    }
+    <span class="kw">if</span> u == <span class="kw">nil</span> {
+        <span class="kw">return</span> fmt.Errorf(<span class="st">"user %d not found"</span>, id)
+    }
+    fmt.Printf(<span class="st">"Hello, %s!\n"</span>, u.Name)  <span class="cm">// safe</span>
+    u.LastSeen = time.Now()
+    <span class="kw">return</span> repo.Save(u)  <span class="cm">// implicit &amp;u</span>
+}</pre>
+        </div>
+      </section>
+
+      <!-- ── 11. COMPARISON ── -->
+      <section id="comparison">
+        <div class="section-number">§ 11</div>
+        <h1>Comparison to Go</h1>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Concern</th><th>Go</th><th>GoRef</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Mutation reference</td><td><code>*T</code></td><td><code>&amp;T</code> — always non-nil</td></tr>
+              <tr><td>Optional / absent value</td><td><code>*T</code> (may be nil)</td><td><code>?T</code> — must be guarded</td></tr>
+              <tr><td>Reference to optional</td><td><code>*T</code> (by convention)</td><td><code>&amp;?T</code> — explicit in type</td></tr>
+              <tr><td>Caller syntax</td><td><code>f(&amp;x)</code></td><td><code>f(x)</code> — implicit</td></tr>
+              <tr><td>Nil panic risk</td><td>Runtime</td><td>Transpile-time error</td></tr>
+              <tr><td>Nil dereference op</td><td>None (implicit)</td><td><code>!</code> postfix with panic message</td></tr>
+              <tr><td>Raw pointer arithmetic</td><td><code>unsafe.Pointer</code></td><td>Not available (by design)</td></tr>
+              <tr><td>Transpiles to</td><td>—</td><td>Idiomatic Go</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── 12. FUTURE WORK ── -->
+      <section id="future">
+        <div class="section-number">§ 12</div>
+        <h1>Future Work</h1>
+        <ul>
+          <li>Result type: <code>Result&lt;T, E&gt;</code> as first-class alternative to <code>(T, error)</code>.</li>
+          <li><code>?T</code> short-circuit operator <code>?.</code> (safe navigation): <code>u?.Name</code> returns <code>?string</code>.</li>
+          <li>Exhaustive nil-pattern matching via switch statements on <code>?T</code>.</li>
+          <li>LSP integration for IDEs (GoRef Language Server).</li>
+          <li>Source maps for debugging transpiled code at the GoRef level.</li>
+          <li>Interoperability mode: annotate imported Go packages with reference/nilable hints.</li>
+        </ul>
+      </section>
+
+      <!-- ── APPENDIX A ── -->
+      <section id="appendix-a">
+        <div class="section-number">Appendix A</div>
+        <h1>Quick Reference</h1>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Syntax</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td>&amp;T</td><td>Non-nil reference to T. Transpiles to *T.</td></tr>
+              <tr><td>?T</td><td>Nilable T. Requires nil-guard before use. Transpiles to *T.</td></tr>
+              <tr><td>&amp;?T</td><td>Non-nil reference to nilable T. Transpiles to *T (non-nil enforced statically).</td></tr>
+              <tr><td>v!</td><td>Unwrap: assert v != nil, panic with message if nil.</td></tr>
+              <tr><td>f(x)</td><td>Pass x to &amp;T param — transpiler inserts &amp;x.</td></tr>
+              <tr><td>if v != nil</td><td>Nil guard — lifts ?T to safe-T inside block.</td></tr>
+              <tr><td>if v == nil { return }</td><td>Early-return guard — marks remainder of scope safe.</td></tr>
+              <tr><td>?[]T</td><td>Nilable slice — must nil-check before range.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── APPENDIX B ── -->
+      <section id="appendix-b">
+        <div class="section-number">Appendix B</div>
+        <h1>Transpiler Error Codes</h1>
+
+        <div class="table-wrap">
+          <table class="error-table">
+            <thead><tr><th>Code</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td>GR001</td><td>Nil assigned to <code>&amp;T</code> (non-nil reference).</td></tr>
+              <tr><td>GR002</td><td><code>?T</code> accessed without nil guard.</td></tr>
+              <tr><td>GR003</td><td><code>?T</code> assigned to <code>T</code> without unwrapping.</td></tr>
+              <tr><td>GR004</td><td><code>&amp;T</code> variable not initialized at declaration.</td></tr>
+              <tr><td>GR005</td><td><code>&amp;</code> address-of operator used explicitly in source.</td></tr>
+              <tr><td>GR006</td><td>Range over <code>?[]T</code> without nil check.</td></tr>
+              <tr><td>GR007</td><td>Return of <code>?T</code> where <code>&amp;T</code> is declared as return type.</td></tr>
+              <tr><td>GR008</td><td>Method call on <code>?T</code> outside nil-guarded scope.</td></tr>
+              <tr><td>GR009</td><td>Invalid type combination: <code>??T</code> or <code>&amp;&amp;T</code> are not permitted.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div><!-- /content -->
+
+    <footer class="doc-footer">
+      <span>GOREF LANGUAGE SPECIFICATION · VERSION 1.0 · DRAFT</span>
+      <span>TRANSPILES TO IDIOMATIC GO</span>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // Sidebar active link highlighting on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav-link');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => link.classList.remove('active'));
+        const active = document.querySelector(`.nav-link[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>
